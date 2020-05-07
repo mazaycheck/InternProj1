@@ -12,18 +12,16 @@ namespace WebApplication2.Data.Configurations
     {
         public void Configure(EntityTypeBuilder<Message> builder)
         {
-
-
             builder
-                .HasOne(m => m.UserSent)
+                .HasOne(m => m.Sender)
                 .WithMany(m => m.MessagesSent)
-                .HasForeignKey(m => m.UserSentId)
+                .HasForeignKey(m => m.SenderId)
                 .OnDelete(DeleteBehavior.Restrict);
 
             builder
-                .HasOne(m => m.UserRecieved)
+                .HasOne(m => m.Reciever)
                 .WithMany(m => m.MessagesRecieved)
-                .HasForeignKey(m => m.UserRecievedId)
+                .HasForeignKey(m => m.RecieverId)
                 .OnDelete(DeleteBehavior.Restrict);
         }
     }

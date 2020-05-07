@@ -26,21 +26,20 @@ namespace WebApplication2.Data.Repositories
             //await _context.SaveChangesAsync();
         }
 
-        public async Task Delete(int id)
-        {
-            var user = await _context.FindAsync<User>(id);
-            if(user == null)
-            {
-                throw new NullReferenceException("Not found");
-            }
+        public async Task Delete(User user)
+        {   
             _context.Users.Remove(user);
-            //await _context.SaveChangesAsync();
+            return;
+        }
+
+        public async Task<bool> Exists(int entityId)
+        {
+            return await _context.Users.AnyAsync(x => x.Id == entityId);
         }
 
         public IQueryable<User> GetAll()
         {
-            return _context.Users.AsNoTracking().Include(x => x.Town).Include(x=>x.Annoucements).Include(x => x.Subscriptions);
-            //return _context.Users;
+            return _context.Users.AsNoTracking().Include(x => x.Town).Include(x => x.UserRoles);            
         }
 
         public async Task<User> GetByEmail(string email)
@@ -49,9 +48,8 @@ namespace WebApplication2.Data.Repositories
         }
 
         public async Task<User> GetById(int id)
-        {
-            
-            return await _context.Users.FindAsync(id);
+        {            
+            return await _context.Users.Include(x => x.Town).Where(x => x.Id == id).SingleOrDefaultAsync();
         }
 
         public async Task<int> Save()
@@ -62,7 +60,7 @@ namespace WebApplication2.Data.Repositories
 
         public async Task Update(User entity)
         {
-            var userToUpdate = _context.Users.Find(entity.UserId);
+            var userToUpdate = _context.Users.Find(entity.Id);
             _context.Entry(userToUpdate).CurrentValues.SetValues(entity);
            
         }

@@ -3,6 +3,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
+using WebApplication2.Data.Dtos;
 using WebApplication2.Models;
 
 namespace WebApplication2.Data.Repositories
@@ -17,47 +18,59 @@ namespace WebApplication2.Data.Repositories
         }
         public async Task Create(Annoucement entity)
         {
-            if (entity == null)
-            {
-                throw new ArgumentNullException("Annoucements null");
-            }
-            await _context.Annoucements.AddAsync(entity);
-            //await _context.SaveChangesAsync();
+            entity.CreateDate = DateTime.Now;
+            entity.ExpirationDate = DateTime.Now.AddDays(30);
+            entity.IsActive = true;
+            await _context.Annoucements.AddAsync(entity);       
         }
 
-        public async Task Delete(int id)
-        {
-            var annoucement = await _context.FindAsync<Annoucement>(id);
-            if (annoucement == null)
-            {                
-                throw new NullReferenceException("Not found");
-            }
+        public async Task Delete(Annoucement annoucement)
+        {     
             _context.Annoucements.Remove(annoucement);
-            //await _context.SaveChangesAsync();
+            return;
         }
 
         public IQueryable<Annoucement> GetAll()
         {
-            
-            return _context.Annoucements.AsNoTracking();
-
+            return _context.Annoucements.AsNoTracking()
+                .Include(a => a.BrandCategory)
+                    .ThenInclude(b => b.Brand)
+                .Include(a => a.BrandCategory)
+                    .ThenInclude(c => c.Category)
+                .Include(u => u.User)
+                    .ThenInclude(t => t.Town)
+                .Include(p => p.Photos);
         }
     
         public async Task<Annoucement> GetById(int id)
-        {
-            return await _context.Annoucements.FindAsync(id);
+        {            
+            return await GetAll().SingleOrDefaultAsync(p=> p.AnnoucementId == id);
         }
 
-        public async Task Update(Annoucement entity)
+        public async Task Update(Annoucement annoucementFromUser)
         {
-            var annoucementToUpdate = await _context.Annoucements.FindAsync(entity.AnnoucementId);
-            _context.Entry(annoucementToUpdate).CurrentValues.SetValues(entity);
-            //await _context.SaveChangesAsync();
+            Annoucement annoucementFromDb = _context.Annoucements.AsNoTracking().Include(p => p.Photos).SingleOrDefault(x =>  x.AnnoucementId == annoucementFromUser.AnnoucementId);
+            if(annoucementFromDb == null)
+            {
+                throw new NullReferenceException("No annoucement with id:" + annoucementFromUser.AnnoucementId);
+            }
+            annoucementFromUser.CreateDate = annoucementFromDb.CreateDate;
+            annoucementFromUser.ExpirationDate = annoucementFromDb.ExpirationDate;
+            annoucementFromUser.Photos = annoucementFromDb.Photos;
+            _context.Update(annoucementFromUser);
+            //context.Entry(annoucementFromDb).CurrentValues.SetValues(annoucementFromUser);
         }
+
+        public async Task UpdateFromDto(AnnoucementPartialUpdateDto annoucementDto)
+        {
+            var annoucementFromDb = await _context.Annoucements.FindAsync(annoucementDto.AnnoucementId);
+            _context.Entry(annoucementFromDb).CurrentValues.SetValues(annoucementDto);
+        }
+
         public async Task<int> Save()
         {
-            var rowncount = await _context.SaveChangesAsync();
-            return rowncount;
+            var rowcount = await _context.SaveChangesAsync();
+            return rowcount;
         }
 
         public async Task<int> DeleteAllFromUser(int id)
@@ -80,6 +93,16 @@ namespace WebApplication2.Data.Repositories
             }                                    
         }
 
-  
+        public async Task<bool> Exists(int entityId)
+        {
+            return await _context.Annoucements.AnyAsync(p => p.AnnoucementId == entityId);
+        }
+
+        public IQueryable<Annoucement> GetByIdQueryable(int id)
+        {
+            return _context.Annoucements.Where(x => x.AnnoucementId == id);
+        }
+
+   
     }
 }

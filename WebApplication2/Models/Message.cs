@@ -7,13 +7,14 @@ namespace WebApplication2.Models
 {
     public class Message
     {
-        public int MessageId { get; set; }        
-        //public Chat Chat { get; set; }
+        public int MessageId { get; set; }
         public string Text { get; set; }
-        public int UserSentId { get; set; }
-        public User UserSent { get; set; }
-        public int UserRecievedId { get; set; }
-        public User UserRecieved { get; set; }
-        public DateTime Time { get; set; }
+        public int SenderId { get; set; }
+        public User Sender { get; set; }
+        public int RecieverId { get; set; }
+        public User Reciever { get; set; }
+        public DateTime? DateTimeSent { get; set; }
+        public DateTime? DateTimeRead { get; set; }
+        public bool IsRead { get; set; }
     }
 }

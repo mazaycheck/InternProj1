@@ -1,9 +1,12 @@
-﻿using Microsoft.Extensions.Configuration;
+﻿using AutoMapper;
+using Microsoft.AspNetCore.Identity;
+using Microsoft.Extensions.Configuration;
 using Microsoft.IdentityModel.Tokens;
 using System;
 using System.Collections.Generic;
 using System.IdentityModel.Tokens.Jwt;
 using System.Linq;
+using System.Security.Authentication;
 using System.Security.Claims;
 using System.Text;
 using System.Threading.Tasks;
@@ -17,78 +20,79 @@ namespace WebApplication2.Services
     {
         private readonly IUserRepository _userRepository;
         private readonly IConfiguration _configuration;
+        private readonly UserManager<User> _userManager;
+        private readonly SignInManager<User> _signInManager;
+        private readonly IMapper _mapper;
 
-        public AuthService(IUserRepository userRepository, IConfiguration configuration)
+        public AuthService(IUserRepository userRepository, IConfiguration configuration, 
+            UserManager<User> userManager, SignInManager<User> signInManager, IMapper mapper)
         {
             _userRepository = userRepository;
             _configuration = configuration;
+            _userManager = userManager;
+            _signInManager = signInManager;
+            _mapper = mapper;
         }
 
         public async Task<User> Login(string email, string password)
         {
-            var user = await _userRepository.GetByEmail(email);
-            
-            if(user == null)
+            var user = await _userManager.FindByEmailAsync(email);
+            if(user != null)
             {
-                return null;
-            }
-            
-            var passwordHashFromdb = user.Password;
-            var passwordHashFromUser = HashThenUnsaltPassword(password, user.PasswordSalt);
-            if (passwordHashFromdb.SequenceEqual(passwordHashFromUser))
-            {
-                return user;
-            }
-            else
-            {
-                return null;
-            }
-            
-        }
-
-        public async Task<int> Register(UserRegisterDto userRegisterDto)
-        {
-            var userEmail = userRegisterDto.Email;
-            if(await _userRepository.UserExists(userEmail))
-            {
-                throw new Exception("User already exists");
-            }
-
-            //byte[] passwordHash;
-            //byte[] passwordSalt;
-            (var passwordHash, var passwordSalt) = HashPassword(userRegisterDto.Password);
-            var user = new User()
-            {
-                Name = userRegisterDto.Name.ToLower(),
-                Password = passwordHash,
-                PasswordSalt = passwordSalt,
-                TownId = userRegisterDto.TownId,
-                PhoneNumber = userRegisterDto.PhoneNumber,
-                Email = userRegisterDto.Email,
-                RegistrationDate = DateTime.Now
+                var result = await _signInManager.CheckPasswordSignInAsync(user, password, false);
+                if (result.Succeeded)
+                {
+                    return user;
+                }
                 
-            };
-
-            await _userRepository.Create(user);
-            await _userRepository.Save();
-            if(user.UserId != default)
-            {
-                return user.UserId;
             }
+            throw new UnauthorizedAccessException("Cannot login");
+            
+
+        }
+
+        public async Task<UserForPublicDetail> Register(UserRegisterDto userRegisterDto)
+        {
+
+            var userEmail = userRegisterDto.Email;
+            if(await _userManager.FindByEmailAsync(userEmail) != null)
+            {
+                throw  new ArgumentException("User already exists");                
+            }
+
+            var newUser = _mapper.Map<User>(userRegisterDto);
+
+            var result = await _userManager.CreateAsync(newUser, userRegisterDto.Password);
+
+            if (result.Succeeded) 
+            {
+                return _mapper.Map<UserForPublicDetail>(newUser);
+            }
+
             else
             {
-                throw new Exception("Could not save user to db");
-            }            
+                return null;
+            }
+            
+
         }
 
 
-        public string CreateToken(User user)
+        public async Task<string> CreateToken(User user)
         {
-            var claims = new Claim[]
+            var claims = new List<Claim>
             {
-                new Claim(ClaimTypes.NameIdentifier, user.UserId.ToString()),
-                new Claim(ClaimTypes.Name, user.Name)
+                new Claim(ClaimTypes.NameIdentifier, user.Id.ToString()),
+                new Claim(ClaimTypes.Name, user.UserName)
             };
+
+            var roles = await _userManager.GetRolesAsync(user);
+
+            foreach (var role in roles)
+            {
+                claims.Add(new Claim(ClaimTypes.Role, role));
+            }
+
             var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_configuration.GetSection("AppSettings:Token").Value));
 
             var creds = new SigningCredentials(key, SecurityAlgorithms.HmacSha512Signature);
@@ -105,29 +109,5 @@ namespace WebApplication2.Services
             return tokenHandler.WriteToken(token);
 
         }
-
-
-        private (byte[] pwHash, byte[] sltHash) HashPassword(string password)
-        {
-            byte[] passwordHash;
-            byte[] passwordSalt;
-            using (var hmac = new System.Security.Cryptography.HMACSHA512()) { 
-                passwordSalt = hmac.Key;
-                passwordHash = hmac.ComputeHash(Encoding.UTF8.GetBytes(password));
-            }
-            return (passwordHash, passwordSalt);
-        }
-
-        private byte[] HashThenUnsaltPassword(string passwordFromUser, byte[] hashSalt)
-        {
-            byte[] passwordHash;
-            using (var hmac = new System.Security.Cryptography.HMACSHA512(hashSalt))
-            {
-                passwordHash = hmac.ComputeHash(Encoding.UTF8.GetBytes(passwordFromUser));
-            }
-
-            return passwordHash;
-        }
-
     }
 }

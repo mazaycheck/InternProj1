@@ -10,7 +10,8 @@ namespace WebApplication2.Models
     {
         public int CategoryId { get; set; }
         [Required]
+        [MaxLength(100)]
         public string Title { get; set; }
-        public ICollection<Brand> Brands { get; set; }
+        public ICollection<BrandCategory> BrandCategories { get; set; }
     }
 }

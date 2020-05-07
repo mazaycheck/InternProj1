@@ -1,94 +1,124 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Linq;
+using System.IO;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Authorization;
-using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
-using WebApplication2.Data.Repositories;
+using WebApplication2.Data.Dtos;
 using WebApplication2.Models;
+using WebApplication2.Helpers;
+using System.Security.Claims;
+using WebApplication2.Services;
+using System.Security.Authentication;
+using Microsoft.AspNetCore.Http;
 
 namespace WebApplication2.Controllers
 {
     [Route("api/[controller]")]
-    [ApiController]
+    [ApiController]    
     public class AnnoucementsController : ControllerBase
-    {
-        private readonly IAnnoucementRepository _repo;
-
-        public AnnoucementsController(IAnnoucementRepository repo)
-        {
-            _repo = repo;
+    {     
+        private readonly IAnnoucementService _service;
+       
+        public AnnoucementsController(IAnnoucementService service)
+        {    
+            _service = service;
         }
-        //[Authorize]
-        [HttpGet]
-        public async Task<IActionResult> GetAll()
-        {
-            var annoucements = await _repo.GetAll().Include(a => a.Category).ToListAsync();
-            return Ok(annoucements);
-        }        
         
-        [HttpGet]
-        [Route("user/{id}")]
-        public async Task<IActionResult> GetAllFromUser([FromRoute]int id)
+        [AllowAnonymous]
+        [HttpGet]               
+        [Route("search")]        
+        public async Task<IActionResult> GetAll([FromQuery]AnnoucementFilter filterOptions, 
+            [FromQuery]PaginateParams paginateParams, [FromQuery]OrderParams orderByParams)
         {
-            var annoucements = await _repo.GetAll()
-                .Include(a => a.Category)
-                //.Include(u => u.User)
-                .Where(u => u.UserId == id)
-                .ToListAsync();
-
-            return Ok(annoucements);
+            Paged<AnnoucementForViewDto> pagedObject = await _service.GetAnnoucements(filterOptions, paginateParams, orderByParams);
+            if (pagedObject != null) 
+            {                
+                return Ok(pagedObject);
+            }
+            else
+            {
+                return NoContent();
+            }            
         }
 
+        [AllowAnonymous]
         [HttpGet("{id}")]
         public async Task<IActionResult> GetById([FromRoute]int id)
         {
-            var annoucement = await _repo.GetById(id);
-            if (annoucement == null) 
-            { 
-                return NotFound();
+            AnnoucementForViewDto annoucementDto = await _service.GetAnnoucementById(id);
+            if(annoucementDto == null)
+            {
+                return NotFound($"No annoucement with id: {id}");
             }
-            return Ok(annoucement);
+            return Ok(annoucementDto);
         }
 
+
+
+
+
+        [Authorize(Roles = "Member")]
         [HttpPost]
-        public async Task<IActionResult> Add([FromBody] Annoucement annoucement)
-        {
-
-            await _repo.Create(annoucement);
-            await _repo.Save();
-            return CreatedAtAction("GetById", new { id = annoucement.AnnoucementId }, annoucement);
+        [Route("new")]
+        public async Task<IActionResult> Add([FromForm] AnnoucementForCreateDto annoucementDto) // id??
+        {  
+            var userId = GetUserIdentifierFromClaims();                  
+            AnnoucementForViewDto annoucement = await _service.CreateNewAnnoucement(annoucementDto, userId);
+            return CreatedAtAction("GetById", new { id = annoucement.Id }, annoucement);            
         }
 
+
+
+        [Authorize(Roles = "Member")]
         [HttpDelete("{id}")]
         public async Task<IActionResult> Delete([FromRoute]int id)
         {
-            await _repo.Delete(id);
-            await _repo.Save();
-            return Ok();
+            bool result = await _service.DeleteAnnoucementById(id);
+            if (!result)
+            {
+                throw Exception($"Could not delete annoucement with id {id}");
+            }
+            return Ok();            
         }
 
-        [HttpDelete]
-        [Route("user/{id}")]
-        public async Task<IActionResult> DeleteAllFromUser(int id)
+        private Exception Exception(string v)
         {
-            var count = await _repo.DeleteAllFromUser(id);
-            return Ok(count);
+            throw new NotImplementedException();
         }
 
-
-
-        [HttpPut("{id}")]
-        public async Task<IActionResult> Update([FromBody] Annoucement annoucement)
+        [Authorize(Roles = "Member")]
+        [HttpPost]
+        [Route("update")]
+        public async Task<IActionResult> Update([FromForm] AnnoucementForUpdateDto annoucementDto)
         {
-            await _repo.Update(annoucement);
-            await _repo.Save();
-            return Ok();
+            var userId = GetUserIdentifierFromClaims();
+
+            AnnoucementForViewDto annoucement = await _service.UpdateAnnoucement(annoucementDto, userId);
+
+            if (annoucement == null)
+            {
+                throw Exception($"Could not update annoucement with id {annoucementDto.AnnoucementId}");
+            }
+
+            return CreatedAtAction("GetById", new { id = annoucement.Id }, annoucement);
         }
 
 
+
+
+
+        private int GetUserIdentifierFromClaims()
+        {
+            if (User.HasClaim(x => x.Type == ClaimTypes.NameIdentifier))
+            {
+                return Int32.Parse(User.FindFirst(ClaimTypes.NameIdentifier).Value);                       
+            }
+            else
+            {
+                throw new InvalidCredentialException($"User has no NameIdentifier claims");
+            }
+        }
 
     }
 }

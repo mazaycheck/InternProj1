@@ -9,6 +9,7 @@ using WebApplication2.Models;
 
 namespace WebApplication2.Helpers
 {
+
     //public class DataSeedingContext : DbContext
     //{
     //    private readonly DbContextOptions<DataSeedingContext> options;

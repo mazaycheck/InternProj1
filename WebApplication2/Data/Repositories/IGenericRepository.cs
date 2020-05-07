@@ -7,11 +7,12 @@ namespace WebApplication2.Data.Repositories
 {
     public interface IGenericRepository<T> where T : class
     {
-        IQueryable<T> GetAll();
+        IQueryable<T> GetAll();                
         Task<T> GetById(int id);
         Task Create(T entity);        
         Task Update(T entity);
-        Task Delete(int id);
-        Task<int> Save();
+        Task Delete(T entity);
+        Task<int> Save();        
+        Task<bool> Exists(int id);
     }
 }

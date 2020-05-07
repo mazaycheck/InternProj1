@@ -15,10 +15,10 @@ namespace WebApplication2.Data.Configurations
 
         public void Configure(EntityTypeBuilder<VehicleAnnoucement> builder)
         {
-            builder.HasData(
-           new VehicleAnnoucement() { AnnoucementId = 7, Title = "New Honda car", Description = "Brand new BMW", CreateDate = DateTime.Now, Price = 5000, UserId = 1, ExpireDate = DateTime.Now.AddDays(30), CategoryId = 1 },
-           new VehicleAnnoucement() { AnnoucementId = 8, Title = "2010 Toyota Corolla", Description = "Comfortable car", CreateDate = DateTime.Now, Price = 6000, UserId = 2, ExpireDate = DateTime.Now.AddDays(30), CategoryId = 1 }
-           );
+           // builder.HasData(
+           //new VehicleAnnoucement() { AnnoucementId = 7, Title = "New Honda car", Description = "Brand new BMW", CreateDate = DateTime.Now, Price = 5000, UserId = 1, BrandCategoryId = 5},
+           //new VehicleAnnoucement() { AnnoucementId = 8, Title = "2010 Toyota Corolla", Description = "Comfortable car", CreateDate = DateTime.Now, Price = 6000, UserId = 2, BrandCategoryId = 2 }
+           //);
         }
     }
 }

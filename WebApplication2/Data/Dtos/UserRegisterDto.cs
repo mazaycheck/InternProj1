@@ -10,7 +10,7 @@ namespace WebApplication2.Data.Dtos
     public class UserRegisterDto
     {
         [Required]
-        public string Name { get; set; }  
+        public string UserName { get; set; }  
         [Required]
         [EmailAddress]
         public string Email { get; set; }
@@ -20,7 +20,7 @@ namespace WebApplication2.Data.Dtos
         [Required]
         public int TownId { get; set; }         
         [Required]
-        [StringLength(8, ErrorMessage = "The number must be {2} characters long")]
+        [StringLength(8, ErrorMessage = "The number must be {1} characters long")]
         public string PhoneNumber { get; set; }        
     }
 }
